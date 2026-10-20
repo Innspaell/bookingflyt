@@ -10,6 +10,7 @@ export function OrgNav({ slug }: { slug: string }) {
     { href: `/admin/${slug}/produkter`, label: "Produkter" },
     { href: `/admin/${slug}/widget`, label: "Widget" },
     { href: `/admin/${slug}/brukere`, label: "Brukere" },
+    { href: `/admin/${slug}/innstillinger`, label: "Innstillinger" },
   ];
   return (
     <nav className="tabs">

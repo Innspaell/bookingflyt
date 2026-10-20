@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { STATUSES, type BookingRequest, type LogEntry, type Product, type RequestStatus } from "@/lib/types";
+import Link from "next/link";
+import { STATUSES, type BookingRequest, type LogEntry, type Offer, type Product, type RequestStatus } from "@/lib/types";
 import { conflictsWith, dateOf, displayName, kr, productLabel, rel, stamp, when, withVat } from "@/lib/format";
 
 export function Board({
@@ -9,11 +10,15 @@ export function Board({
   initialRequests,
   products,
   initialOpen,
+  orgSlug,
+  fikenReady,
 }: {
   orgId: string;
   initialRequests: BookingRequest[];
   products: Product[];
   initialOpen: string | null;
+  orgSlug: string;
+  fikenReady: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [requests, setRequests] = useState(initialRequests);
@@ -134,6 +139,10 @@ export function Board({
           onCancelConflict={() => setConflict(null)}
           onSaved={(next, msg) => { setRequests((rs) => rs.map((x) => (x.id === next.id ? next : x))); flash(msg); }}
           onError={flash}
+          orgSlug={orgSlug}
+          fikenReady={fikenReady}
+          allRequests={requests}
+          onStatus={(status) => setRequests((rs) => rs.map((x) => (x.id === open.id ? { ...x, status } : x)))}
         />
       )}
       {toast && <div className="toast" role="status">{toast}</div>}
@@ -142,8 +151,12 @@ export function Board({
 }
 
 function Drawer({
-  r, products, conflict, onClose, onMove, onCancelConflict, onSaved, onError,
+  r, products, conflict, onClose, onMove, onCancelConflict, onSaved, onError, orgSlug, fikenReady, allRequests, onStatus,
 }: {
+  orgSlug: string;
+  fikenReady: boolean;
+  allRequests: BookingRequest[];
+  onStatus: (s: RequestStatus) => void;
   r: BookingRequest;
   products: Product[];
   conflict: BookingRequest[] | null;
@@ -166,6 +179,53 @@ function Drawer({
     notes: r.notes ?? "",
   });
   const [saving, setSaving] = useState(false);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [fkBusy, setFkBusy] = useState(false);
+  const [fkMsg, setFkMsg] = useState("");
+  const [fkError, setFkError] = useState("");
+  const [acceptConflict, setAcceptConflict] = useState<BookingRequest[] | null>(null);
+
+  const loadOffers = useMemo(() => async () => {
+    const { data } = await supabase.from("offers").select("*").eq("request_id", r.id).order("created_at", { ascending: false });
+    setOffers((data ?? []) as Offer[]);
+  }, [supabase, r.id]);
+  useEffect(() => { loadOffers(); }, [loadOffers]);
+
+  async function fikenCall(path: "offer" | "accept", body: unknown) {
+    setFkBusy(true); setFkError(""); setFkMsg("");
+    const res = await fetch(`/api/admin/${orgSlug}/requests/${r.id}/${path}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const j = await res.json().catch(() => ({}));
+    setFkBusy(false);
+    if (!res.ok) { setFkError(j.error ?? "Noe gikk galt"); return null; }
+    return j;
+  }
+
+  async function makeOffer(send: boolean) {
+    await save(true);
+    const j = await fikenCall("offer", { send, message: offerMsg || undefined });
+    if (!j) return;
+    if (j.warning) setFkError(j.warning);
+    else setFkMsg(send ? `Tilbud #${j.offerNumber} er sendt til ${r.email}.` : `Tilbud #${j.offerNumber} ligger i Fiken. Send det derfra, og merk kortet som «Tilbud sendt».`);
+    if (j.sent) onStatus("tilbud");
+    loadOffers(); loadLog();
+  }
+
+  async function accept(force = false) {
+    if (!force) {
+      const c = conflictsWith(r, allRequests);
+      if (c.length) { setAcceptConflict(c); return; }
+    }
+    setAcceptConflict(null);
+    const j = await fikenCall("accept", {});
+    if (!j) return;
+    onStatus("bekreftet");
+    setFkMsg("Ordrebekreftelse opprettet i Fiken. Avtalen ligger i kalenderen.");
+    loadOffers(); loadLog();
+  }
+
+  const [offerMsg, setOfferMsg] = useState("");
 
   const loadLog = useMemo(() => async () => {
     const { data } = await supabase.from("request_log").select("*").eq("request_id", r.id).order("created_at", { ascending: false });
@@ -183,7 +243,7 @@ function Drawer({
   const vat = product?.vat_rate ?? 25;
   const priceNum = f.price === "" ? null : Number(f.price);
 
-  async function save() {
+  async function save(quiet = false) {
     const patch: Partial<BookingRequest> = {};
     const changes: string[] = [];
     if ((f.product_id || null) !== r.product_id && f.product_id) {
@@ -202,7 +262,7 @@ function Drawer({
     if (f.customer_type !== r.customer_type) { patch.customer_type = f.customer_type; changes.push("kundetype → " + f.customer_type); }
     if (f.notes !== (r.notes ?? "")) { patch.notes = f.notes; changes.push("notater oppdatert"); }
 
-    if (!changes.length) { onSaved(r, "Ingen endringer"); return; }
+    if (!changes.length) { if (!quiet) onSaved(r, "Ingen endringer"); return; }
     setSaving(true);
     const { data, error } = await supabase.from("requests").update(patch).eq("id", r.id).select("*").single();
     if (error) { setSaving(false); onError("Kunne ikke lagre: " + error.message); return; }
@@ -220,7 +280,11 @@ function Drawer({
   switch (r.status) {
     case "ny": moves.push({ to: "kontaktet", label: "Merk som kontaktet →", kind: "primary" }, { to: "avslatt", label: "Avslå", kind: "danger" }); break;
     case "kontaktet": moves.push({ to: "ny", label: "← Ny" }, { to: "tilbud", label: "Merk tilbud sendt →" }, { to: "bekreftet", label: "Bekreft og legg i kalender", kind: "primary" }, { to: "avslatt", label: "Avslå", kind: "danger" }); break;
-    case "tilbud": moves.push({ to: "kontaktet", label: "← Kontaktet" }, { to: "bekreftet", label: "Kunden har akseptert – bekreft →", kind: "primary" }, { to: "avslatt", label: "Kunden takket nei", kind: "danger" }); break;
+    case "tilbud": moves.push({ to: "kontaktet", label: "← Kontaktet" },
+      offers.length && fikenReady
+        ? { to: "bekreftet", label: "Bekreft uten ordrebekreftelse" }
+        : { to: "bekreftet", label: "Kunden har akseptert – bekreft →", kind: "primary" },
+      { to: "avslatt", label: "Kunden takket nei", kind: "danger" }); break;
     case "bekreftet": moves.push({ to: "kontaktet", label: "← Opphev bekreftelse" }, { to: "avslatt", label: "Avlys", kind: "danger" }); break;
     case "avslatt": moves.push({ to: "kontaktet", label: "Hent tilbake til Kontaktet" }); break;
   }
@@ -255,6 +319,24 @@ function Drawer({
             <button key={m.to + m.label} className={`btn ${m.kind ?? ""}`} onClick={() => onMove(m.to)}>{m.label}</button>
           ))}
         </div>
+
+        <FikenPanel
+          r={r}
+          offers={offers}
+          fikenReady={fikenReady}
+          orgSlug={orgSlug}
+          busy={fkBusy}
+          msg={fkMsg}
+          error={fkError}
+          offerMsg={offerMsg}
+          setOfferMsg={setOfferMsg}
+          hasPrice={f.price !== "" || product?.price_ex_vat != null}
+          onOffer={makeOffer}
+          onAccept={() => accept(false)}
+          acceptConflict={acceptConflict}
+          onAcceptForce={() => accept(true)}
+          onAcceptCancel={() => setAcceptConflict(null)}
+        />
 
         <dl className="contact">
           <dt>Kundetype</dt><dd>{r.customer_type === "privat" ? "Privatperson" : "Bedrift" + (r.orgnr ? ` · org.nr ${r.orgnr}` : "")}</dd>
@@ -316,7 +398,7 @@ function Drawer({
           <label htmlFor="d-notes">Interne notater</label>
           <textarea id="d-notes" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} placeholder="Hva er avtalt, hva gjenstår …" />
         </div>
-        <div><button className="btn" onClick={save} disabled={saving}>{saving ? "Lagrer …" : "Lagre endringer"}</button></div>
+        <div><button className="btn" onClick={() => save()} disabled={saving}>{saving ? "Lagrer …" : "Lagre endringer"}</button></div>
 
         <div className="label">Historikk</div>
         <ul className="log">
@@ -324,5 +406,90 @@ function Drawer({
         </ul>
       </aside>
     </>
+  );
+}
+
+function FikenPanel({
+  r, offers, fikenReady, orgSlug, busy, msg, error, offerMsg, setOfferMsg, hasPrice,
+  onOffer, onAccept, acceptConflict, onAcceptForce, onAcceptCancel,
+}: {
+  r: BookingRequest; offers: Offer[]; fikenReady: boolean; orgSlug: string; busy: boolean;
+  msg: string; error: string; offerMsg: string; setOfferMsg: (s: string) => void; hasPrice: boolean;
+  onOffer: (send: boolean) => void; onAccept: () => void;
+  acceptConflict: BookingRequest[] | null; onAcceptForce: () => void; onAcceptCancel: () => void;
+}) {
+  const canOffer = ["ny", "kontaktet", "tilbud"].includes(r.status);
+  if (!canOffer && offers.length === 0) return null;
+  const latest = offers[0];
+
+  return (
+    <section className="fiken">
+      <div className="fiken-h"><span className="fk">Fiken</span><b>{latest ? `Tilbud #${latest.fiken_offer_number}` : "Tilbud"}</b></div>
+
+      {offers.length > 0 && (
+        <ul className="plain small">
+          {offers.map((o) => (
+            <li key={o.id}>
+              <span className="mono">#{o.fiken_offer_number}</span> · {kr(o.total_inc_vat)} inkl. mva ·{" "}
+              {o.accepted_at ? <b>Akseptert {stamp(o.accepted_at)}</b> : o.sent_at ? `Sendt ${stamp(o.sent_at)} til ${o.sent_to}` : "Ikke sendt fra Bookingflyt"}
+              {o.fiken_order_confirmation_id ? " · ordrebekreftelse laget" : ""}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!fikenReady && canOffer && (
+        <p className="small muted" style={{ margin: 0 }}>
+          Koble bedriften til Fiken under <Link href={`/admin/${orgSlug}/innstillinger`}>Innstillinger</Link> for å lage tilbud herfra.
+        </p>
+      )}
+
+      {fikenReady && r.status === "tilbud" && latest && !latest.accepted_at && (
+        <>
+          {acceptConflict ? (
+            <div className="alert">
+              <b>Kollisjon i kalenderen</b>
+              <span>{acceptConflict.map((o) => `${displayName(o)} – ${when(o)}`).join(" · ")}</span>
+              <div className="moves">
+                <button className="btn small" onClick={onAcceptCancel}>Avbryt og juster</button>
+                <button className="btn small primary" disabled={busy} onClick={onAcceptForce}>Bekreft likevel</button>
+              </div>
+            </div>
+          ) : (
+            <div className="moves">
+              <button className="btn primary" disabled={busy} onClick={onAccept}>
+                {busy ? "Lager ordrebekreftelse …" : "Kunden har akseptert → ordrebekreftelse og bekreft"}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {fikenReady && canOffer && (
+        <details open={offers.length === 0}>
+          <summary className="small">{offers.length ? "Lag nytt tilbud (f.eks. etter endret pris)" : "Lag tilbud i Fiken"}</summary>
+          <div className="stack" style={{ marginTop: 8 }}>
+            {!hasPrice && <p className="error small">Sett avtalt pris under før du lager tilbud.</p>}
+            <div className="field">
+              <label htmlFor="fk-msg">Melding til kunden i e-posten (valgfritt)</label>
+              <textarea id="fk-msg" rows={3} value={offerMsg} onChange={(e) => setOfferMsg(e.target.value)}
+                placeholder={`Hei ${r.contact_name.split(" ")[0]}! Takk for hyggelig prat. Her er tilbudet vi snakket om.`} />
+            </div>
+            <div className="moves">
+              <button className="btn primary" disabled={busy || !hasPrice} onClick={() => onOffer(true)}>
+                {busy ? "Jobber mot Fiken …" : `Lag og send til ${r.email}`}
+              </button>
+              <button className="btn" disabled={busy || !hasPrice} onClick={() => onOffer(false)}>Lag uten å sende</button>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              Endringer i feltene under lagres først. Kunden opprettes i Fiken hvis den ikke finnes. Fiken sender tilbudet som PDF.
+            </p>
+          </div>
+        </details>
+      )}
+
+      {msg && <p className="small" role="status" style={{ margin: 0 }}>{msg}</p>}
+      {error && <p className="error small" role="alert">{error}</p>}
+    </section>
   );
 }

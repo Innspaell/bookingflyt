@@ -58,7 +58,7 @@ export function ProductAdmin({ orgId, initial }: { orgId: string; initial: Produ
       <div className="sectionhead">
         <p className="muted">
           Det kunden kan velge i skjemaet. Skru av et produkt for å skjule det uten å miste gamle forespørsler.
-          «Annet» vises alltid i skjemaet. Prisene er ekskl. mva, og mva-satsen følger produktet inn i tilbudet.
+          «Annet» vises alltid i skjemaet. Prisene er ekskl. mva, og mva-satsen følger produktet inn i tilbudet. «Konto i Fiken» er inntektskontoen; tom betyr 3000 (med mva) eller 3100 (uten mva).
         </p>
       </div>
 
@@ -84,7 +84,7 @@ export function ProductAdmin({ orgId, initial }: { orgId: string; initial: Produ
 
       <div className="tscroll">
         <table className="ptable">
-          <thead><tr><th>Produkt</th><th>Kategori</th><th>Tidsramme</th><th>Veil. pris ekskl. mva</th><th>Mva</th><th>Vises</th><th></th></tr></thead>
+          <thead><tr><th>Produkt</th><th>Kategori</th><th>Tidsramme</th><th>Veil. pris ekskl. mva</th><th>Mva</th><th>Konto i Fiken</th><th>Vises</th><th></th></tr></thead>
           <tbody>
             {sorted.map((p) => (
               <tr key={p.id} className={p.active ? "" : "off"}>
@@ -109,6 +109,15 @@ export function ProductAdmin({ orgId, initial }: { orgId: string; initial: Produ
                     onChange={(e) => patch(p, { vat_rate: Number(e.target.value) }, "Mva oppdatert")}>
                     {VAT_RATES.map((v) => <option key={v} value={v}>{v === 0 ? "Fritatt" : `${v} %`}</option>)}
                   </select>
+                </td>
+                <td>
+                  <input aria-label={`Inntektskonto for ${p.name}`} className="mono num" inputMode="numeric" maxLength={4}
+                    placeholder={p.vat_rate > 0 ? "3000" : "3100"} defaultValue={p.income_account ?? ""}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim() || null;
+                      if (v && !/^\d{4}$/.test(v)) { flash("Kontonummer skal ha 4 siffer"); return; }
+                      if (v !== p.income_account) patch(p, { income_account: v }, v ? `Konto ${v}` : "Standardkonto");
+                    }} />
                 </td>
                 <td>
                   <button className="switch" role="switch" aria-checked={p.active} aria-label={`Vis ${p.name}`}

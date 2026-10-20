@@ -35,6 +35,7 @@ export interface Product {
   booking_type: BookingType;
   price_ex_vat: number | null;
   vat_rate: number;
+  income_account: string | null;
   active: boolean;
   sort_order: number;
 }
@@ -60,6 +61,7 @@ export interface BookingRequest {
   duration_min: number | null;
   price_ex_vat: number | null;
   notes: string | null;
+  fiken_contact_id: number | null;
   created_at: string;
   updated_at: string;
   status_changed_at: string;
@@ -69,5 +71,18 @@ export interface LogEntry {
   id: number;
   request_id: string;
   message: string;
+  created_at: string;
+}
+
+export interface Offer {
+  id: string;
+  request_id: string;
+  fiken_offer_id: number | null;
+  fiken_offer_number: string | null;
+  total_inc_vat: number | null;
+  sent_to: string | null;
+  sent_at: string | null;
+  accepted_at: string | null;
+  fiken_order_confirmation_id: number | null;
   created_at: string;
 }

@@ -15,7 +15,9 @@ Forespørsler fra nettsiden → tavle → tilbud → kalender. Én installasjon 
 - **Brukere**: inviter folk til én bedrift om gangen, med rollene eier, admin eller medarbeider. Tilgang kan fjernes, og den siste eieren kan ikke fjernes.
 - **Database med radnivåsikkerhet (RLS).** Brukere ser bare data for bedriftene de er medlem av.
 
-**Kommer:** e-post (varsel, kvittering, bekreftelse) og Fiken (tilbud, PDF, godkjenningslenke, ordrebekreftelse).
+- **Fiken (del 1)**: koble til med API-nøkkel (lagres kryptert). Fra kortet lager og sender du tilbud via Fiken. Når kunden aksepterer, lages ordrebekreftelsen og kortet flyttes til Bekreftet. Mva-type og inntektskonto følger produktet.
+
+**Kommer:** e-post (varsel, kvittering, bekreftelse) og Fiken del 2 (godkjenningsknapp i egen e-post).
 
 ## Oppsett, første gang
 
@@ -33,6 +35,7 @@ Forespørsler fra nettsiden → tavle → tilbud → kalender. Én installasjon 
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `NEXT_PUBLIC_APP_URL`, som er Vercel-adressen, for eksempel `https://bookingflyt.vercel.app`
+   - `SECRETS_KEY`, en tilfeldig nøkkel på 32 byte (`openssl rand -base64 32`) som krypterer Fiken-nøkler
 4. Trykk **Deploy**.
 
 ### 3. Innlogging
