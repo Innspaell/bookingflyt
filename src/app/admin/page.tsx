@@ -16,8 +16,8 @@ export default async function AdminIndex() {
         <h1>Nesten klar</h1>
         <p>Du er logget inn som <b>{user.email}</b>, men har ikke tilgang til noen bedrift ennå.</p>
         <p className="muted">
-          Kjør SQL-setningen nederst i <code>supabase/seed.sql</code> i Supabase med denne e-postadressen,
-          og last siden på nytt.
+          Be den som administrerer bedriften om å invitere <b>{user.email}</b> under fanen Brukere,
+          og last deretter siden på nytt.
         </p>
       </div>
     </main>

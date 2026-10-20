@@ -140,3 +140,10 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .subscribe { margin-top: 18px; }
 .subscribe pre.code { white-space: pre-wrap; word-break: break-all; }
 .check { display: flex; gap: 8px; align-items: center; font-size: .9rem; }
+
+/* Brukere */
+.ptable.members { min-width: 640px; }
+.notice { margin-bottom: 14px; }
+.notice.ok { border-color: var(--s-bek); }
+.notice.error { border-color: var(--warn); color: var(--warn); }
+.code-inline { font-family: var(--mono); font-size: .82rem; background: var(--sunk); padding: 5px 8px; border-radius: 6px; overflow-wrap: anywhere; }

@@ -12,6 +12,7 @@ Forespørsler fra nettsiden → tavle → tilbud → kalender. Én installasjon 
 - **Tavle** med kolonnene Ny → Kontaktet → Tilbud sendt → Bekreftet, pluss Avslått. Du kan dra og slippe kortene, og redigere produkt, dato, tid, varighet, pris, kundetype og notater. Systemet sjekker for kollisjoner, logger historikken og oppdaterer tavla i sanntid når nye forespørsler kommer inn.
 - **Produkter**: legg til, skjul eller slett, og endre tidsramme, pris og mva per produkt.
 - **Kalender**: månedsvisning der bekreftede avtaler vises som fylte felt, og tilbud og avklaringer som stiplede. Klikk på en avtale for å åpne kortet. I tillegg finnes en kalenderlenke (ICS) du kan abonnere på fra iPhone, Google eller Outlook. Lenken kan byttes ut hvis den kommer på avveie.
+- **Brukere**: inviter folk til én bedrift om gangen, med rollene eier, admin eller medarbeider. Tilgang kan fjernes, og den siste eieren kan ikke fjernes.
 - **Database med radnivåsikkerhet (RLS).** Brukere ser bare data for bedriftene de er medlem av.
 
 **Kommer:** e-post (varsel, kvittering, bekreftelse) og Fiken (tilbud, PDF, godkjenningslenke, ordrebekreftelse).
