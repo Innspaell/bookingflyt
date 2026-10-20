@@ -1,12 +1,3 @@
--- Bookingflyt: brukere og invitasjoner
--- Kjøres i Supabase: SQL Editor → lim inn → Run.
---
--- Regler:
---  * Bare eier og admin kan invitere og fjerne brukere.
---  * Bare eier kan gjøre noen til eier, eller fjerne en eier.
---  * Den siste eieren kan ikke fjernes.
---  * En invitasjon gjelder én bedrift. Personen får tilgang automatisk første gang hen logger inn.
-
 create table invitations (
   org_id     uuid not null references organizations(id) on delete cascade,
   email      text not null check (email = lower(email) and email ~ '^[^\s@]+@[^\s@]+\.[^\s@]+$'),
@@ -16,6 +7,16 @@ create table invitations (
   primary key (org_id, email)
 );
 alter table invitations enable row level security;
+
+-- Bookingflyt: brukere og invitasjoner
+-- Kjøres i Supabase: SQL Editor → lim inn → Run.
+--
+-- Regler:
+--  * Bare eier og admin kan invitere og fjerne brukere.
+--  * Bare eier kan gjøre noen til eier, eller fjerne en eier.
+--  * Den siste eieren kan ikke fjernes.
+--  * En invitasjon gjelder én bedrift. Personen får tilgang automatisk første gang hen logger inn.
+
 create policy "medlem ser invitasjoner" on invitations for select using (is_member(org_id));
 -- Ingen insert/delete-policyer: endringer går kun via funksjonene under.
 
