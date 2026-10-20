@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bookingflyt
 
-## Getting Started
+Forespørsler fra nettsiden → tavle → tilbud → kalender. Én installasjon for flere bedrifter (InnSpæll og Kjøsen Værsågod), med helt adskilte data.
 
-First, run the development server:
+**Stack:** Next.js (Vercel) · Supabase (database, innlogging, sanntid) · widget i ren JavaScript.
 
+## Hva som er bygget (versjon 0.1)
+
+- **Widget** (`public/w.js`) som limes inn på hvilken som helst nettside. Den har valg mellom privatperson og bedrift, tjenester per kategori, «Annet», fritekst, dato og sted. Den er innkapslet, så nettsidens stil ikke påvirker den, og har spamvern (skjult felt, minste utfyllingstid og maks 5 innsendinger per e-post i timen).
+- **Offentlig API** for widgeten. Det godtar bare innsendinger fra nettsider du har godkjent.
+- **Innlogging** med e-postlenke, uten passord.
+- **Tavle** med kolonnene Ny → Kontaktet → Tilbud sendt → Bekreftet, pluss Avslått. Du kan dra og slippe kortene, og redigere produkt, dato, tid, varighet, pris, kundetype og notater. Systemet sjekker for kollisjoner, logger historikken og oppdaterer tavla i sanntid når nye forespørsler kommer inn.
+- **Produkter**: legg til, skjul eller slett, og endre tidsramme, pris og mva per produkt.
+- **Database med radnivåsikkerhet (RLS).** Brukere ser bare data for bedriftene de er medlem av.
+
+**Kommer:** kalendervisning og abonnement på kalenderen (ICS), e-post (varsel, kvittering, bekreftelse) og Fiken (tilbud, PDF, godkjenningslenke, ordrebekreftelse).
+
+## Oppsett, første gang
+
+### 1. Supabase
+1. Lag et prosjekt på supabase.com i regionen **Stockholm (eu-north-1)**.
+2. Åpne **SQL Editor** → **New query**. Lim inn hele `supabase/migrations/0001_init.sql` og trykk **Run**.
+3. Gjør det samme med `supabase/seed.sql`. Dette legger inn bedriftene og produktene.
+4. Gå til **Project Settings → API** og noter tre ting: `Project URL`, `anon public`-nøkkelen og `service_role`-nøkkelen. Service role-nøkkelen er hemmelig.
+
+### 2. Vercel
+1. Legg koden i et GitHub-repo.
+2. På vercel.com velger du **Add New → Project** og importerer repoet.
+3. Under **Environment Variables** legger du inn verdiene fra `.env.example`:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXT_PUBLIC_APP_URL`, som er Vercel-adressen, for eksempel `https://bookingflyt.vercel.app`
+4. Trykk **Deploy**.
+
+### 3. Innlogging
+1. I Supabase går du til **Authentication → URL Configuration**. Sett **Site URL** til Vercel-adressen, og legg til `https://DIN-ADRESSE/auth/callback` under **Redirect URLs**.
+2. Åpne appen, logg inn med e-posten din og klikk på lenken du får.
+3. I **SQL Editor** kjører du dette, med din e-postadresse, for å gi deg tilgang til begge bedriftene:
+   ```sql
+   insert into members (org_id, user_id, role)
+   select o.id, u.id, 'eier' from organizations o, auth.users u
+   where u.email = 'DIN@EPOST.NO';
+   ```
+4. Last siden på nytt. Nå ser du tavla.
+
+### 4. Widgeten på nettsiden
+Under fanen **Widget** i appen finner du koden som skal limes inn. Nettsiden må stå på listen over godkjente adresser. Den endres i Supabase under **Table Editor → organizations → allowed_origins**. Adressene `https://innspaell.no` og `https://kjsn.no` med og uten www ligger inne fra start.
+
+## Utvikling lokalt
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local   # fyll inn verdiene
+npm install
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Sikkerhet
+- `SUPABASE_SERVICE_ROLE_KEY` brukes bare i API-rutene på serveren, og aldri i nettleseren.
+- Fiken-nøkler skal ligge i `organization_secrets`. Den tabellen har ingen policyer, så bare serveren kan lese den.
+- Nettsidebesøkende har ingen direkte tilgang til databasen. Alt går via API-et, som kontrollerer hver innsending.
