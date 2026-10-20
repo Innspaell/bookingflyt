@@ -6,6 +6,7 @@ export function OrgNav({ slug }: { slug: string }) {
   const path = usePathname();
   const tabs = [
     { href: `/admin/${slug}`, label: "Tavle" },
+    { href: `/admin/${slug}/kalender`, label: "Kalender" },
     { href: `/admin/${slug}/produkter`, label: "Produkter" },
     { href: `/admin/${slug}/widget`, label: "Widget" },
   ];

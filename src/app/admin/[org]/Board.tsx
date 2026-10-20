@@ -8,14 +8,16 @@ export function Board({
   orgId,
   initialRequests,
   products,
+  initialOpen,
 }: {
   orgId: string;
   initialRequests: BookingRequest[];
   products: Product[];
+  initialOpen: string | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [requests, setRequests] = useState(initialRequests);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpen);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<RequestStatus | null>(null);
   const [conflict, setConflict] = useState<{ id: string; with: BookingRequest[] } | null>(null);

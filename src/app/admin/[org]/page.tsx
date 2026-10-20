@@ -3,8 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { Board } from "./Board";
 import type { BookingRequest, Product } from "@/lib/types";
 
-export default async function BoardPage({ params }: { params: Promise<{ org: string }> }) {
+export default async function BoardPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ org: string }>;
+  searchParams: Promise<{ open?: string }>;
+}) {
   const { org: slug } = await params;
+  const { open } = await searchParams;
   const supabase = await createClient();
   const { data: org } = await supabase.from("organizations").select("id, name").eq("slug", slug).maybeSingle();
   if (!org) notFound();
@@ -19,6 +26,7 @@ export default async function BoardPage({ params }: { params: Promise<{ org: str
       orgId={org.id}
       initialRequests={(requests ?? []) as BookingRequest[]}
       products={(products ?? []) as Product[]}
+      initialOpen={open ?? null}
     />
   );
 }

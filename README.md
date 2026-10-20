@@ -11,16 +11,17 @@ Forespørsler fra nettsiden → tavle → tilbud → kalender. Én installasjon 
 - **Innlogging** med e-postlenke, uten passord.
 - **Tavle** med kolonnene Ny → Kontaktet → Tilbud sendt → Bekreftet, pluss Avslått. Du kan dra og slippe kortene, og redigere produkt, dato, tid, varighet, pris, kundetype og notater. Systemet sjekker for kollisjoner, logger historikken og oppdaterer tavla i sanntid når nye forespørsler kommer inn.
 - **Produkter**: legg til, skjul eller slett, og endre tidsramme, pris og mva per produkt.
+- **Kalender**: månedsvisning der bekreftede avtaler vises som fylte felt, og tilbud og avklaringer som stiplede. Klikk på en avtale for å åpne kortet. I tillegg finnes en kalenderlenke (ICS) du kan abonnere på fra iPhone, Google eller Outlook. Lenken kan byttes ut hvis den kommer på avveie.
 - **Database med radnivåsikkerhet (RLS).** Brukere ser bare data for bedriftene de er medlem av.
 
-**Kommer:** kalendervisning og abonnement på kalenderen (ICS), e-post (varsel, kvittering, bekreftelse) og Fiken (tilbud, PDF, godkjenningslenke, ordrebekreftelse).
+**Kommer:** e-post (varsel, kvittering, bekreftelse) og Fiken (tilbud, PDF, godkjenningslenke, ordrebekreftelse).
 
 ## Oppsett, første gang
 
 ### 1. Supabase
 1. Lag et prosjekt på supabase.com i regionen **Stockholm (eu-north-1)**.
 2. Åpne **SQL Editor** → **New query**. Lim inn hele `supabase/migrations/0001_init.sql` og trykk **Run**.
-3. Gjør det samme med `supabase/seed.sql`. Dette legger inn bedriftene og produktene.
+3. Gjør det samme med `supabase/migrations/0002_calendar.sql`, og deretter `supabase/seed.sql`. Seed-filen legger inn bedriftene og produktene.
 4. Gå til **Project Settings → API** og noter tre ting: `Project URL`, `anon public`-nøkkelen og `service_role`-nøkkelen. Service role-nøkkelen er hemmelig.
 
 ### 2. Vercel
